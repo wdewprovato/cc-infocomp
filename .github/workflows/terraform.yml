@@ -18,6 +18,10 @@
 #
 # Terraform azurerm backend does not use Azure CLI auth for service principals; the workflow exports ARM_* from AZURE_CREDENTIALS.
 #
+#   GITHUB_RUNNER_SSH_PUBLIC_KEY — Linux SSH public key for azurerm_linux_virtual_machine.github_runner (same value as
+#     github_runner.ssh_public_key in local variables.auto.tfvars). Written to github-runner.auto.tfvars.json in CI because
+#     *.auto.tfvars is not in the repo.
+#
 # Manual destroy: workflow_dispatch with run_destroy=true (plan only), then confirm_destroy=true to apply.
 # Do not use run_apply and run_destroy together. Resources with lifecycle.prevent_destroy will block destroy.
 
@@ -67,6 +71,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Write github_runner for CI
+        env:
+          SSH_PUBLIC_KEY: ${{ secrets.GITHUB_RUNNER_SSH_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SSH_PUBLIC_KEY:-}" ]; then
+            echo "::error::Set repository secret GITHUB_RUNNER_SSH_PUBLIC_KEY (SSH public key for the GitHub runner VM; same as github_runner.ssh_public_key locally)."
+            exit 1
+          fi
+          jq -n --arg k "$SSH_PUBLIC_KEY" '{github_runner: {ssh_public_key: $k}}' > github-runner.auto.tfvars.json
 
       - name: Azure Login
         uses: azure/login@v2

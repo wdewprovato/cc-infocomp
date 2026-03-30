@@ -99,6 +99,7 @@ variable "github_runner" {
     Self-hosted GitHub Actions runner VM on vm_network_subnet (reaches private Web App over the VNet).
     Outbound to GitHub requires assign_public_ip = true or a separate NAT gateway on the subnet.
     After apply: SSH in, download actions-runner from GitHub releases, run ./config.sh with a registration token.
+    In GitHub Actions, set repository secret GITHUB_RUNNER_SSH_PUBLIC_KEY to this same public key (local *.auto.tfvars is not committed).
   EOT
   type = object({
     vm_size          = optional(string, "Standard_B2s")
