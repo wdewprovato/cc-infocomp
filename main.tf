@@ -1,5 +1,10 @@
 data "azurerm_client_config" "current" {}
 
+moved {
+  from = azurerm_app_service_plan.infocomp_plan
+  to   = azurerm_service_plan.infocomp_plan
+}
+
 // Storage account names: 3–24 chars, lowercase letters and numbers only (no hyphens).
 locals {
   env_lower = lower(var.environment)
@@ -94,7 +99,7 @@ resource "azurerm_storage_account" "tf_state" {
 // Storage Container for Terraform State Files
 resource "azurerm_storage_container" "tf_state_container" {
   name                  = "tfstate-container-${var.environment}"
-  storage_account_name  = azurerm_storage_account.tf_state.name
+  storage_account_id    = azurerm_storage_account.tf_state.id
   container_access_type = "private"
 }
 
@@ -120,14 +125,12 @@ resource "azurerm_storage_table" "infocomp_table" {
 }
 
 // App Service Plan
-resource "azurerm_app_service_plan" "infocomp_plan" {
+resource "azurerm_service_plan" "infocomp_plan" {
   name                = "asp-infocomp-${var.environment}"
   location            = azurerm_resource_group.apphosting_rg.location
   resource_group_name = azurerm_resource_group.apphosting_rg.name
-  sku {
-    tier = "Standard"
-    size = "S1"
-  }
+  os_type             = "Windows"
+  sku_name            = "S1"
 }
 
 // Web App
@@ -135,7 +138,7 @@ resource "azurerm_windows_web_app" "infocomp_webapp" {
   name                = "webapp-infocomp-${var.environment}"
   location            = azurerm_resource_group.apphosting_rg.location
   resource_group_name = azurerm_resource_group.apphosting_rg.name
-  service_plan_id     = azurerm_app_service_plan.infocomp_plan.id
+  service_plan_id     = azurerm_service_plan.infocomp_plan.id
 
   identity {
     type = "SystemAssigned"
