@@ -21,25 +21,13 @@
 name: Terraform
 
 on:
-  pull_request:
-    paths:
-      - "**/*.tf"
-      - ".terraform.lock.hcl"
-      - ".github/workflows/terraform.yml"
-  push:
-    branches:
-      - main
-    paths:
-      - "**/*.tf"
-      - ".terraform.lock.hcl"
-      - ".github/workflows/terraform.yml"
   workflow_dispatch:
     inputs:
       environment:
         description: "TF_VAR_environment and state key segment (e.g. dev, staging)."
+        type: choice
+        options: [qa, dev]
         required: true
-        default: dev
-        type: string
       run_apply:
         description: "Run terraform apply after plan."
         required: false
