@@ -1,8 +1,5 @@
 # Required GitHub secrets (repository or environment):
-#   AZURE_CLIENT_ID           — App registration client ID
-#   AZURE_CLIENT_SECRET       — App registration client secret (store as a secret; rotate regularly)
-#   AZURE_TENANT_ID
-#   AZURE_SUBSCRIPTION_ID
+#   AZURE_CREDENTIALS         — JSON output of `az ad sp create-for-rbac --sdk-auth` (clientId, clientSecret, subscriptionId, tenantId)
 #   TF_BACKEND_RESOURCE_GROUP — RG containing the Terraform state storage account
 #   TF_BACKEND_STORAGE_ACCOUNT
 #   TF_BACKEND_CONTAINER
@@ -10,7 +7,7 @@
 # Optional repository variable:
 #   TF_ENVIRONMENT — default workspace name for state key and TF_VAR_environment (e.g. dev). Ignored when using workflow_dispatch.
 #
-# Azure: app registration needs a client secret; grant the app Contributor (or narrower) on the subscription
+# Azure: service principal in AZURE_CREDENTIALS needs Contributor (or narrower) on the subscription
 # and Storage Blob Data Contributor on the state storage account for backend + Terraform.
 
 name: Terraform
@@ -60,13 +57,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Azure login (client secret)
+      - name: Azure Login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
