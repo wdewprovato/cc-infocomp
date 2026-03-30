@@ -47,6 +47,12 @@ resource "azurerm_resource_group" "state_rg" {
   location = var.location
 }
 
+// Resource group for github runner
+resource "azurerm_resource_group" "cicd_rg" {
+  name     = "rg-cc-infocomp-${var.environment}-cicd-eus-01"
+  location = var.location
+}
+
 // Virtual Network
 resource "azurerm_virtual_network" "infocomp_vnet" {
   name                = "vnet-cc-infocomp-${var.environment}"
@@ -209,8 +215,8 @@ resource "azurerm_network_security_group" "github_runner" {
   count = var.github_runner.enabled ? 1 : 0
 
   name                = "nsg-cc-infocomp-github-runner-${var.environment}"
-  location            = azurerm_resource_group.infra_rg.location
-  resource_group_name = azurerm_resource_group.infra_rg.name
+  location            = azurerm_resource_group.cicd_rg.location
+  resource_group_name = azurerm_resource_group.cicd_rg.name
 }
 
 resource "azurerm_network_security_rule" "github_runner_ssh" {
@@ -225,7 +231,7 @@ resource "azurerm_network_security_rule" "github_runner_ssh" {
   destination_port_range      = "22"
   source_address_prefixes     = var.github_runner.allow_ssh_cidrs
   destination_address_prefix  = "*"
-  resource_group_name         = azurerm_resource_group.infra_rg.name
+  resource_group_name         = azurerm_resource_group.cicd_rg.name
   network_security_group_name = azurerm_network_security_group.github_runner[0].name
 }
 
@@ -233,8 +239,8 @@ resource "azurerm_public_ip" "github_runner" {
   count = var.github_runner.enabled && var.github_runner.assign_public_ip ? 1 : 0
 
   name                = "pip-cc-infocomp-github-runner-${var.environment}"
-  location            = azurerm_resource_group.infra_rg.location
-  resource_group_name = azurerm_resource_group.infra_rg.name
+  location            = azurerm_resource_group.cicd_rg.location
+  resource_group_name = azurerm_resource_group.cicd_rg.name
   allocation_method   = "Static"
   sku                 = "Standard"
 }
@@ -243,8 +249,8 @@ resource "azurerm_network_interface" "github_runner" {
   count = var.github_runner.enabled ? 1 : 0
 
   name                = "nic-cc-infocomp-github-runner-${var.environment}"
-  location            = azurerm_resource_group.infra_rg.location
-  resource_group_name = azurerm_resource_group.infra_rg.name
+  location            = azurerm_resource_group.cicd_rg.location
+  resource_group_name = azurerm_resource_group.cicd_rg.name
 
   ip_configuration {
     name                          = "internal"
@@ -287,8 +293,8 @@ resource "azurerm_linux_virtual_machine" "github_runner" {
   count = var.github_runner.enabled ? 1 : 0
 
   name                = "vm-cc-infocomp-github-runner-${var.environment}"
-  location            = azurerm_resource_group.infra_rg.location
-  resource_group_name = azurerm_resource_group.infra_rg.name
+  location            = azurerm_resource_group.cicd_rg.location
+  resource_group_name = azurerm_resource_group.cicd_rg.name
   size                = var.github_runner.vm_size
   admin_username      = var.github_runner.admin_username
   custom_data         = local.github_runner_cloud_init
