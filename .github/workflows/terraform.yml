@@ -17,6 +17,9 @@
 #   --scope "$(az storage account show -g <rg> -n <storageAccount> --query id -o tsv)"
 #
 # Terraform azurerm backend does not use Azure CLI auth for service principals; the workflow exports ARM_* from AZURE_CREDENTIALS.
+#
+# Manual destroy: workflow_dispatch with run_destroy=true (plan only), then confirm_destroy=true to apply.
+# Do not use run_apply and run_destroy together. Resources with lifecycle.prevent_destroy will block destroy.
 
 name: Terraform
 
@@ -30,6 +33,16 @@ on:
         required: true
       run_apply:
         description: "Run terraform apply after plan."
+        required: false
+        default: false
+        type: boolean
+      run_destroy:
+        description: "Plan destroy instead of create/update (terraform plan -destroy)."
+        required: false
+        default: false
+        type: boolean
+      confirm_destroy:
+        description: "Apply the destroy plan (requires run_destroy). Irreversible."
         required: false
         default: false
         type: boolean
@@ -98,6 +111,18 @@ jobs:
             echo "tf_environment=${{ vars.TF_ENVIRONMENT || 'dev' }}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Check mutually exclusive apply options
+        if: ${{ inputs.run_apply && inputs.run_destroy }}
+        run: |
+          echo "::error::run_apply and run_destroy cannot both be true."
+          exit 1
+
+      - name: Check destroy confirmation
+        if: ${{ inputs.confirm_destroy && !inputs.run_destroy }}
+        run: |
+          echo "::error::confirm_destroy requires run_destroy."
+          exit 1
+
       - name: Terraform format (check)
         run: terraform fmt -check -recursive
 
@@ -130,21 +155,47 @@ jobs:
         run: terraform validate
 
       - name: Terraform plan
+        if: ${{ !inputs.run_destroy }}
         env:
           TF_VAR_environment: ${{ steps.env.outputs.tf_environment }}
         run: terraform plan -input=false -no-color -out=tfplan
 
       - name: Terraform show (plan text)
+        if: ${{ !inputs.run_destroy }}
         run: terraform show -no-color tfplan > tfplan.txt
 
       - name: Upload plan artifact
+        if: ${{ !inputs.run_destroy }}
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan-${{ github.run_id }}
           path: tfplan.txt
 
       - name: Terraform apply
-        if: github.event_name == 'workflow_dispatch' && inputs.run_apply == true
+        if: github.event_name == 'workflow_dispatch' && inputs.run_apply == true && inputs.run_destroy == false
         env:
           TF_VAR_environment: ${{ steps.env.outputs.tf_environment }}
         run: terraform apply -input=false -no-color tfplan
+
+      - name: Terraform plan (destroy)
+        if: inputs.run_destroy
+        env:
+          TF_VAR_environment: ${{ steps.env.outputs.tf_environment }}
+        run: terraform plan -destroy -input=false -no-color -out=tfdestroy
+
+      - name: Terraform show (destroy plan text)
+        if: inputs.run_destroy
+        run: terraform show -no-color tfdestroy > tfdestroy-plan.txt
+
+      - name: Upload destroy plan artifact
+        if: inputs.run_destroy
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-destroy-plan-${{ github.run_id }}
+          path: tfdestroy-plan.txt
+
+      - name: Terraform apply (destroy)
+        if: github.event_name == 'workflow_dispatch' && inputs.run_destroy == true && inputs.confirm_destroy == true
+        env:
+          TF_VAR_environment: ${{ steps.env.outputs.tf_environment }}
+        run: terraform apply -input=false -no-color tfdestroy

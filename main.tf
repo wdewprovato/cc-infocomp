@@ -83,26 +83,6 @@ resource "azurerm_subnet" "vm_network_subnet" {
   address_prefixes     = ["10.36.3.0/24"]
 }
 
-// Storage Account for Terraform State Management
-resource "azurerm_storage_account" "tf_state" {
-  name                     = local.tf_state_storage_name
-  resource_group_name      = azurerm_resource_group.state_rg.name
-  location                 = azurerm_resource_group.state_rg.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
-
-  tags = {
-    environment = var.environment
-  }
-}
-
-// Storage Container for Terraform State Files
-resource "azurerm_storage_container" "tf_state_container" {
-  name                  = "tfstate-container-${var.environment}"
-  storage_account_id    = azurerm_storage_account.tf_state.id
-  container_access_type = "private"
-}
-
 // Storage Account for App Hosting Resources
 resource "azurerm_storage_account" "infocomp_storage" {
   name                     = local.infocomp_storage_name
