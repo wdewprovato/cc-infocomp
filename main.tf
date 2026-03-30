@@ -254,8 +254,8 @@ resource "azurerm_network_interface" "github_runner" {
 }
 
 resource "azurerm_network_interface_security_group_association" "github_runner" {
-  network_interface_id      = azurerm_network_interface.github_runner[0].id
-  network_security_group_id = azurerm_network_security_group.github_runner[0].id
+  network_interface_id      = azurerm_network_interface.github_runner.id
+  network_security_group_id = azurerm_network_security_group.github_runner.id
 }
 
 locals {
@@ -289,7 +289,7 @@ resource "azurerm_linux_virtual_machine" "github_runner" {
   custom_data         = local.github_runner_cloud_init
 
   network_interface_ids = [
-    azurerm_network_interface.github_runner[0].id,
+    azurerm_network_interface.github_runner.id,
   ]
 
   admin_ssh_key {
