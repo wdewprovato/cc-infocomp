@@ -212,8 +212,6 @@ resource "azurerm_log_analytics_workspace" "infocomp_law" {
 // -----------------------------------------------------------------------------
 
 resource "azurerm_network_security_group" "github_runner" {
-  count = var.github_runner.enabled ? 1 : 0
-
   name                = "nsg-cc-infocomp-github-runner-${var.environment}"
   location            = azurerm_resource_group.cicd_rg.location
   resource_group_name = azurerm_resource_group.cicd_rg.name
@@ -221,8 +219,6 @@ resource "azurerm_network_security_group" "github_runner" {
 
 
 resource "azurerm_network_security_rule" "github_runner_ssh" {
-  count = var.github_runner.enabled ? 1 : 0
-
   name                        = "AllowSSH"
   priority                    = 100
   direction                   = "Inbound"
@@ -237,8 +233,6 @@ resource "azurerm_network_security_rule" "github_runner_ssh" {
 }
 
 resource "azurerm_public_ip" "github_runner" {
-  count = var.github_runner.enabled && var.github_runner.assign_public_ip ? 1 : 0
-
   name                = "pip-cc-infocomp-github-runner-${var.environment}"
   location            = azurerm_resource_group.cicd_rg.location
   resource_group_name = azurerm_resource_group.cicd_rg.name
@@ -247,8 +241,6 @@ resource "azurerm_public_ip" "github_runner" {
 }
 
 resource "azurerm_network_interface" "github_runner" {
-  count = var.github_runner.enabled ? 1 : 0
-
   name                = "nic-cc-infocomp-github-runner-${var.environment}"
   location            = azurerm_resource_group.cicd_rg.location
   resource_group_name = azurerm_resource_group.cicd_rg.name
@@ -262,8 +254,6 @@ resource "azurerm_network_interface" "github_runner" {
 }
 
 resource "azurerm_network_interface_security_group_association" "github_runner" {
-  count = var.github_runner.enabled ? 1 : 0
-
   network_interface_id      = azurerm_network_interface.github_runner[0].id
   network_security_group_id = azurerm_network_security_group.github_runner[0].id
 }
@@ -291,8 +281,6 @@ locals {
 }
 
 resource "azurerm_linux_virtual_machine" "github_runner" {
-  count = var.github_runner.enabled ? 1 : 0
-
   name                = "vm-cc-infocomp-github-runner-${var.environment}"
   location            = azurerm_resource_group.cicd_rg.location
   resource_group_name = azurerm_resource_group.cicd_rg.name
