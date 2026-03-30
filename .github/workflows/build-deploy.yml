@@ -3,9 +3,6 @@ name: Build and Deploy CC Blazor App
 on:
   workflow_dispatch:
 
-permissions:
-  contents: read
-  id-token: write # required for azure/login OIDC / federated auth
 
 env:
   DOTNET_VERSION: 10.0.x
