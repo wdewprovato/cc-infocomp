@@ -258,6 +258,13 @@ resource "azurerm_network_interface_security_group_association" "github_runner" 
   network_security_group_id = azurerm_network_security_group.github_runner.id
 }
 
+// SSH keypair for the runner VM (Terraform tls provider). Azure does not expose one-shot key generation in azurerm_*;
+// the private key is in state and in the sensitive output github_runner_ssh_private_key_openssh — protect state accordingly.
+resource "tls_private_key" "github_runner" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
 locals {
   github_runner_cloud_init = base64encode(join("", [
     "#cloud-config\n",
@@ -294,7 +301,7 @@ resource "azurerm_linux_virtual_machine" "github_runner" {
 
   admin_ssh_key {
     username   = var.github_runner.admin_username
-    public_key = var.github_runner.ssh_public_key
+    public_key = tls_private_key.github_runner.public_key_openssh
   }
 
   os_disk {

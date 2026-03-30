@@ -98,21 +98,17 @@ variable "github_runner" {
   description = <<-EOT
     Self-hosted GitHub Actions runner VM on vm_network_subnet (reaches private Web App over the VNet).
     Outbound to GitHub requires assign_public_ip = true or a separate NAT gateway on the subnet.
-    After apply: SSH in, download actions-runner from GitHub releases, run ./config.sh with a registration token.
-    In GitHub Actions, set repository secret GITHUB_RUNNER_SSH_PUBLIC_KEY to this same public key (local *.auto.tfvars is not committed).
+    SSH: an RSA keypair is created by Terraform (tls_private_key); retrieve the private key with
+    terraform output -raw github_runner_ssh_private_key_openssh (sensitive; also stored in remote state).
+    After apply: SSH in, install actions/runner, run ./config.sh with a registration token.
   EOT
   type = object({
     vm_size          = optional(string, "Standard_B2s")
     admin_username   = optional(string, "azureuser")
-    ssh_public_key   = string
     assign_public_ip = optional(bool, true)
     allow_ssh_cidrs  = optional(list(string), ["0.0.0.0/0"])
     disk_size_gb     = optional(number, 128)
     install_docker   = optional(bool, true)
   })
-
-  validation {
-    condition     = length(trimspace(var.github_runner.ssh_public_key)) > 0
-    error_message = "github_runner.ssh_public_key must be set (e.g. in tfvars or TF_VAR_github_runner)."
-  }
+  default = {}
 }

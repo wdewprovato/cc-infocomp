@@ -76,8 +76,19 @@ output "github_runner_public_ip" {
   value       = var.github_runner.assign_public_ip ? azurerm_public_ip.github_runner.ip_address : null
 }
 
+output "github_runner_ssh_public_key" {
+  description = "OpenSSH public key installed on the runner VM (for verification)."
+  value       = tls_private_key.github_runner.public_key_openssh
+}
+
+output "github_runner_ssh_private_key_openssh" {
+  description = "OpenSSH private key to SSH as github_runner.admin_username. Sensitive; also stored in Terraform state."
+  value       = tls_private_key.github_runner.private_key_openssh
+  sensitive   = true
+}
+
 output "github_runner_ssh_hint" {
-  description = "SSH command when assign_public_ip is true."
-  value       = var.github_runner.assign_public_ip ? "ssh ${var.github_runner.admin_username}@${azurerm_public_ip.github_runner.ip_address}" : null
+  description = "SSH example when assign_public_ip is true; use output github_runner_ssh_private_key_openssh as the identity file."
+  value       = var.github_runner.assign_public_ip ? "ssh -i <path-to-private-key> ${var.github_runner.admin_username}@${azurerm_public_ip.github_runner.ip_address}" : null
 }
 
