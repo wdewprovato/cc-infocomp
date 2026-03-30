@@ -18,5 +18,5 @@ terraform {
     key                  = "infocomp/dev/terraform.tfstate"
     # Use managed identity or service principal if not using access keys
   }
-  
+
 }
