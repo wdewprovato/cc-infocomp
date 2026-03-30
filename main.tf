@@ -277,7 +277,7 @@ locals {
         [["sh", "-c", "echo 'GitHub Actions runner: install from https://github.com/actions/runner then ./config.sh' >> /etc/motd"]]
       )
     }),
-  ])) : ""
+  ]))
 }
 
 resource "azurerm_linux_virtual_machine" "github_runner" {

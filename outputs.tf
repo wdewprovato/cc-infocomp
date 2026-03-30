@@ -68,16 +68,16 @@ output "application_gateway_name" {
 
 output "github_runner_private_ip" {
   description = "Private IP of the self-hosted runner VM (VNet access to private Web App)."
-  value       = length(azurerm_network_interface.github_runner) > 0 ? azurerm_network_interface.github_runner.private_ip_address : null
+  value       = azurerm_network_interface.github_runner.private_ip_address
 }
 
 output "github_runner_public_ip" {
-  description = "Public IP for SSH and GitHub egress when assign_public_ip is true."
-  value       = length(azurerm_public_ip.github_runner) > 0 ? azurerm_public_ip.github_runner.ip_address : null
+  description = "Public IP when assign_public_ip is true; null otherwise."
+  value       = var.github_runner.assign_public_ip ? azurerm_public_ip.github_runner.ip_address : null
 }
 
 output "github_runner_ssh_hint" {
-  description = "SSH command when runner has a public IP."
-  value       = length(azurerm_public_ip.github_runner) > 0 ? "ssh ${var.github_runner.admin_username}@${azurerm_public_ip.github_runner.ip_address}" : null
+  description = "SSH command when assign_public_ip is true."
+  value       = var.github_runner.assign_public_ip ? "ssh ${var.github_runner.admin_username}@${azurerm_public_ip.github_runner.ip_address}" : null
 }
 

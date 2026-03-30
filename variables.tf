@@ -100,22 +100,17 @@ variable "github_runner" {
     After apply: SSH in, download actions-runner from GitHub releases, run ./config.sh with a registration token.
   EOT
   type = object({
-    enabled          = bool
     vm_size          = optional(string, "Standard_B2s")
     admin_username   = optional(string, "azureuser")
-    ssh_public_key   = optional(string, "")
+    ssh_public_key   = string
     assign_public_ip = optional(bool, true)
     allow_ssh_cidrs  = optional(list(string), ["0.0.0.0/0"])
     disk_size_gb     = optional(number, 128)
     install_docker   = optional(bool, true)
   })
-  default = {
-    enabled        = false
-    ssh_public_key = ""
-  }
 
   validation {
-    condition     = !var.github_runner.enabled || length(var.github_runner.ssh_public_key) > 0
-    error_message = "When github_runner.enabled is true, set ssh_public_key (e.g. in tfvars or TF_VAR_github_runner)."
+    condition     = length(trimspace(var.github_runner.ssh_public_key)) > 0
+    error_message = "github_runner.ssh_public_key must be set (e.g. in tfvars or TF_VAR_github_runner)."
   }
 }
