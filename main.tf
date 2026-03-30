@@ -229,7 +229,7 @@ resource "azurerm_network_security_rule" "github_runner_ssh" {
   source_address_prefixes     = var.github_runner.allow_ssh_cidrs
   destination_address_prefix  = "*"
   resource_group_name         = azurerm_resource_group.cicd_rg.name
-  network_security_group_name = azurerm_network_security_group.github_runner[0].name
+  network_security_group_name = azurerm_network_security_group.github_runner.name
 }
 
 resource "azurerm_public_ip" "github_runner" {
@@ -249,7 +249,7 @@ resource "azurerm_network_interface" "github_runner" {
     name                          = "internal"
     subnet_id                     = azurerm_subnet.vm_network_subnet.id
     private_ip_address_allocation = "Dynamic"
-    public_ip_address_id          = var.github_runner.assign_public_ip ? azurerm_public_ip.github_runner[0].id : null
+    public_ip_address_id          = var.github_runner.assign_public_ip ? azurerm_public_ip.github_runner.id : null
   }
 }
 
