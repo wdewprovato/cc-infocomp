@@ -7,8 +7,15 @@
 # Optional repository variable:
 #   TF_ENVIRONMENT — default workspace name for state key and TF_VAR_environment (e.g. dev). Ignored when using workflow_dispatch.
 #
-# Azure: service principal in AZURE_CREDENTIALS needs Contributor (or narrower) on the subscription
-# and Storage Blob Data Contributor on the state storage account for backend + Terraform.
+# Azure RBAC for the SAME app registration as AZURE_CREDENTIALS (clientId):
+#   • Subscription (or target RG): Contributor (or a custom role) so Terraform can manage resources.
+#   • State storage account: **Storage Blob Data Contributor** (data plane). Required for use_azuread_auth.
+#     Owner/Contributor on the subscription or RG does NOT include blob data access; without the blob role,
+#     terraform init fails with 403 AuthorizationPermissionMismatch on ListBlobs.
+#   • Assign the role at the storage account scope (or the blob container). Propagation can take a few minutes.
+# Example (replace IDs/names): az role assignment create --assignee <clientId> --role "Storage Blob Data Contributor" \
+#   --scope "$(az storage account show -g <rg> -n <storageAccount> --query id -o tsv)"
+#
 # Terraform azurerm backend does not use Azure CLI auth for service principals; the workflow exports ARM_* from AZURE_CREDENTIALS.
 
 name: Terraform
