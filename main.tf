@@ -259,7 +259,7 @@ resource "azurerm_network_interface_security_group_association" "github_runner" 
 }
 
 locals {
-  github_runner_cloud_init = var.github_runner.enabled ? base64encode(join("", [
+  github_runner_cloud_init = base64encode(join("", [
     "#cloud-config\n",
     yamlencode({
       package_update  = true
