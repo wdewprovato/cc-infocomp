@@ -51,11 +51,3 @@ output "storage_account_infocomp" {
   value = azurerm_storage_account.infocomp_storage.name
 }
 
-output "terraform_state_storage_account" {
-  description = "Storage account used for Terraform state (same module creates it)."
-  value       = azurerm_storage_account.tf_state.name
-}
-
-output "terraform_state_container" {
-  value = azurerm_storage_container.tf_state_container.name
-}
