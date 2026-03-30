@@ -89,7 +89,12 @@ resource "azurerm_storage_account" "infocomp_storage" {
   account_kind             = "StorageV2"
   account_tier             = "Standard"
   account_replication_type = "GRS"
+
   allow_nested_items_to_be_public = false
+
+  lifecycle {
+    prevent_destroy = false
+  }
 }
 
 resource "azurerm_storage_table" "infocomp_table" {
