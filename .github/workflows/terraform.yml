@@ -9,6 +9,7 @@
 #
 # Azure: service principal in AZURE_CREDENTIALS needs Contributor (or narrower) on the subscription
 # and Storage Blob Data Contributor on the state storage account for backend + Terraform.
+# Terraform azurerm backend does not use Azure CLI auth for service principals; the workflow exports ARM_* from AZURE_CREDENTIALS.
 
 name: Terraform
 
@@ -63,6 +64,29 @@ jobs:
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Export ARM credentials for Terraform
+        env:
+          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+        run: |
+          set -euo pipefail
+          CID=$(echo "$AZURE_CREDENTIALS" | jq -r '.clientId // .appId // empty')
+          SECRET=$(echo "$AZURE_CREDENTIALS" | jq -r '.clientSecret // empty')
+          SUB=$(echo "$AZURE_CREDENTIALS" | jq -r '.subscriptionId // empty')
+          TID=$(echo "$AZURE_CREDENTIALS" | jq -r '.tenantId // empty')
+          if [ -z "$CID" ] || [ -z "$SECRET" ] || [ -z "$SUB" ] || [ -z "$TID" ]; then
+            echo "::error::AZURE_CREDENTIALS must be JSON with clientId (or appId), clientSecret, subscriptionId, and tenantId."
+            exit 1
+          fi
+          echo "ARM_CLIENT_ID=$CID" >> "$GITHUB_ENV"
+          echo "ARM_SUBSCRIPTION_ID=$SUB" >> "$GITHUB_ENV"
+          echo "ARM_TENANT_ID=$TID" >> "$GITHUB_ENV"
+          {
+            echo 'ARM_CLIENT_SECRET<<__TF_ARM_CLIENT_SECRET__'
+            printf '%s\n' "$SECRET"
+            echo __TF_ARM_CLIENT_SECRET__
+          } >> "$GITHUB_ENV"
+        # Delimiter form for ARM_CLIENT_SECRET avoids breakage if the secret contains = or quotes.
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
