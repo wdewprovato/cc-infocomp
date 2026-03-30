@@ -1,10 +1,10 @@
 # Copy snippets into variables.auto.tfvars (or merge with your existing file).
-# Repository .gitignore ignores *.auto.tfvars — keep secrets and PFX paths local.
+# Repository .gitignore ignores *.auto.tfvars — keep local-only values there.
 #
-# PFX files: place under e.g. ./certs/ and add certs/*.pfx to .gitignore (recommended).
-# Passwords: use environment (not committed):
-#   PowerShell: $env:TF_VAR_app_gateway_ssl_certificate_passwords = '{"main":"your-pfx-password"}'
-#   Bash:       export TF_VAR_app_gateway_ssl_certificate_passwords='{"main":"your-pfx-password"}'
+# Certificates: upload each PFX to Key Vault as a secret (Base64 PKCS#12), then reference secret_name.
+#   az keyvault secret set --vault-name <vault> --name appgw-ssl --file cert.pfx
+# Terraform (and CI) must be able to read those secrets during plan/apply.
+# Application Gateway uses a user-assigned managed identity with Key Vault secret Get on that vault.
 
 # --- Disabled (default-style) -------------------------------------------------
 # app_gateway_config = {
@@ -12,7 +12,7 @@
 #   sites   = []
 # }
 
-# --- Example: single public hostname + one PFX ------------------------------
+# --- Example: single hostname + one KV secret ---------------------------------
 # app_gateway_config = {
 #   enabled                 = true
 #   sku_name                = "WAF_v2"
@@ -20,29 +20,28 @@
 #   capacity                = 2
 #   subnet_address_prefixes = ["10.36.4.0/26"]
 #   redirect_http_to_https  = true
+#   # key_vault_id = null  # omit to use module Key Vault kv-cc-infocomp-<environment>
 #   ssl_certificates = {
-#     main = { pfx_file = "certs/app.example.com.pfx" }
+#     main = { secret_name = "appgw-ssl-app-example-com" }
 #   }
 #   sites = [
 #     {
 #       name                = "primary"
 #       host_name           = "app.example.com"
 #       ssl_certificate_key = "main"
-#       # backend_host_header defaults to the Web App default hostname (App Service SNI)
-#       # health_probe_path = "/"
 #     }
 #   ]
 # }
 
-# --- Example: multiple domains (shared or per-site PFX via map keys) ----------
+# --- Example: multiple domains (one secret per cert) --------------------------
 # app_gateway_config = {
 #   enabled   = true
 #   sku_name  = "WAF_v2"
 #   sku_tier  = "WAF_v2"
 #   capacity  = 2
 #   ssl_certificates = {
-#     app_a = { pfx_file = "certs/a.example.com.pfx" }
-#     app_b = { pfx_file = "certs/b.example.com.pfx" }
+#     app_a = { secret_name = "appgw-ssl-a-example-com" }
+#     app_b = { secret_name = "appgw-ssl-b-example-com" }
 #   }
 #   sites = [
 #     { name = "site-a", host_name = "a.example.com", ssl_certificate_key = "app_a" },
@@ -50,14 +49,14 @@
 #   ]
 # }
 
-# --- Example: Standard_v2 (no WAF), external WAF policy later -----------------
+# --- Example: Standard_v2 (no inline WAF) -------------------------------------
 # app_gateway_config = {
 #   enabled                  = true
 #   sku_name                 = "Standard_v2"
 #   sku_tier                 = "Standard_v2"
 #   enable_waf_configuration = false
 #   firewall_policy_id       = null
-#   ssl_certificates         = { main = { pfx_file = "certs/site.pfx" } }
+#   ssl_certificates         = { main = { secret_name = "appgw-ssl-main" } }
 #   sites = [
 #     { name = "primary", host_name = "www.example.com", ssl_certificate_key = "main" }
 #   ]

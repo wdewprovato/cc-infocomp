@@ -12,8 +12,9 @@ variable "location" {
 
 variable "app_gateway_config" {
   description = <<-EOT
-    Optional Application Gateway (v2): multi-site TLS from PFX files, backend = App Service private endpoint.
-    PFX paths are relative to the Terraform working directory. Set enabled = false to skip all AGW resources.
+    Optional Application Gateway (v2): TLS certificates from Azure Key Vault (PFX stored as secrets), backend = App Service private endpoint.
+    Set enabled = false to skip all AGW resources. Upload each PFX to Key Vault as a secret (Base64 PKCS#12); reference by secret_name.
+    Defaults to module Key Vault (azurerm_key_vault.infocomp_kv); set key_vault_id to use another vault.
     For WAF_v2, either enable_waf_configuration (inline OWASP) or set firewall_policy_id to a managed WAF policy.
     Standard_v2: set sku_name/sku_tier to Standard_v2 and enable_waf_configuration = false.
   EOT
@@ -32,8 +33,9 @@ variable "app_gateway_config" {
     waf_file_upload_limit_mb     = optional(number, 100)
     waf_max_request_body_size_kb = optional(number, 128)
     firewall_policy_id           = optional(string, null)
+    key_vault_id                 = optional(string, null)
     ssl_certificates = optional(map(object({
-      pfx_file = string
+      secret_name = string
     })), {})
     sites = optional(list(object({
       name                = string
@@ -53,7 +55,7 @@ variable "app_gateway_config" {
       length(var.app_gateway_config.sites) > 0 &&
       length(var.app_gateway_config.ssl_certificates) > 0
     )
-    error_message = "When app_gateway_config.enabled is true, define at least one site and one ssl_certificates map entry."
+    error_message = "When app_gateway_config.enabled is true, define at least one site and one ssl_certificates entry (Key Vault secret names)."
   }
 
   validation {
@@ -85,14 +87,6 @@ variable "app_gateway_config" {
     error_message = "Use either firewall_policy_id or enable_waf_configuration, not both."
   }
 }
-
-variable "app_gateway_ssl_certificate_passwords" {
-  type        = map(string)
-  sensitive   = true
-  default     = {}
-  description = "PFX password per ssl_certificates key. Prefer env: TF_VAR_app_gateway_ssl_certificate_passwords='{\"main\":\"...\"}' instead of tfvars."
-}
-
 
 variable "github_runner" {
   description = <<-EOT

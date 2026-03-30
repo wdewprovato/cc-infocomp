@@ -1,11 +1,8 @@
 # -----------------------------------------------------------------------------
-# Application Gateway (optional): public entry, TLS (PFX), multi-site hostnames,
+# Application Gateway (optional): TLS certs from Key Vault secrets (PFX as Base64),
+# user-assigned identity + Key Vault access policy, multi-site listeners,
 # HTTP→HTTPS redirect, backend = App Service via private endpoint IP.
-#
-# Configure in variables.auto.tfvars (gitignored here) using the same shapes as
-# config/app-gateway.auto.tfvars.example. PFX paths are relative to the repo
-# root (where you run terraform). Do not commit PFX files; passwords should
-# come from environment, e.g. TF_VAR_app_gateway_ssl_certificate_passwords (JSON map).
+# See config/app-gateway.auto.tfvars.example.
 # -----------------------------------------------------------------------------
 
 # NIC for the Web App private endpoint (provider 4.x exposes IP via the linked interface).
@@ -17,6 +14,8 @@ data "azurerm_network_interface" "webapp_private_endpoint" {
 }
 
 locals {
+  app_gateway_key_vault_id = coalesce(var.app_gateway_config.key_vault_id, azurerm_key_vault.infocomp_kv.id)
+
   agw_sites_map = var.app_gateway_config.enabled ? {
     for s in var.app_gateway_config.sites : s.name => s
   } : {}
@@ -33,6 +32,31 @@ locals {
   }
 
   agw_waf_inline = var.app_gateway_config.enable_waf_configuration && strcontains(var.app_gateway_config.sku_tier, "WAF")
+}
+
+data "azurerm_key_vault_secret" "app_gateway_ssl" {
+  for_each = var.app_gateway_config.enabled ? var.app_gateway_config.ssl_certificates : {}
+
+  name         = each.value.secret_name
+  key_vault_id = local.app_gateway_key_vault_id
+}
+
+resource "azurerm_user_assigned_identity" "app_gateway" {
+  count = var.app_gateway_config.enabled ? 1 : 0
+
+  name                = "uami-cc-infocomp-appgw-${var.environment}"
+  location            = azurerm_resource_group.infra_rg.location
+  resource_group_name = azurerm_resource_group.infra_rg.name
+}
+
+resource "azurerm_key_vault_access_policy" "app_gateway" {
+  count = var.app_gateway_config.enabled ? 1 : 0
+
+  key_vault_id = local.app_gateway_key_vault_id
+  tenant_id    = data.azurerm_client_config.current.tenant_id
+  object_id    = azurerm_user_assigned_identity.app_gateway[0].principal_id
+
+  secret_permissions = ["Get"]
 }
 
 # Dedicated subnet (Application Gateway must be alone in its subnet; /26+ for v2).
@@ -111,12 +135,16 @@ resource "azurerm_application_gateway" "main" {
     public_ip_address_id = azurerm_public_ip.application_gateway[0].id
   }
 
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.app_gateway[0].id]
+  }
+
   dynamic "ssl_certificate" {
     for_each = var.app_gateway_config.ssl_certificates
     content {
-      name     = ssl_certificate.key
-      data     = filebase64("${path.root}/${ssl_certificate.value.pfx_file}")
-      password = lookup(var.app_gateway_ssl_certificate_passwords, ssl_certificate.key, "")
+      name                = ssl_certificate.key
+      key_vault_secret_id = data.azurerm_key_vault_secret.app_gateway_ssl[ssl_certificate.key].id
     }
   }
 
@@ -215,6 +243,7 @@ resource "azurerm_application_gateway" "main" {
   }
 
   depends_on = [
+    azurerm_key_vault_access_policy.app_gateway,
     azurerm_private_endpoint.webapp_endpoint,
     azurerm_windows_web_app.infocomp_webapp,
   ]
