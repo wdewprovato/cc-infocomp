@@ -219,6 +219,7 @@ resource "azurerm_network_security_group" "github_runner" {
   resource_group_name = azurerm_resource_group.cicd_rg.name
 }
 
+
 resource "azurerm_network_security_rule" "github_runner_ssh" {
   count = var.github_runner.enabled ? 1 : 0
 
