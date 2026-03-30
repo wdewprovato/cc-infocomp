@@ -13,3 +13,7 @@ terraform.rc
 *.auto.tfvars.json
 **/config/*.backend.hcl
 !**/*.backend.hcl.example
+
+# TLS material for Application Gateway (paths referenced from app_gateway_config)
+certs/*.pfx
+certs/*.p12

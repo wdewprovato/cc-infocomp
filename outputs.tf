@@ -51,3 +51,33 @@ output "storage_account_infocomp" {
   value = azurerm_storage_account.infocomp_storage.name
 }
 
+output "application_gateway_public_ip" {
+  description = "Public IP of Application Gateway when app_gateway_config.enabled is true."
+  value       = try(azurerm_public_ip.application_gateway[0].ip_address, null)
+}
+
+output "application_gateway_id" {
+  description = "Resource ID of Application Gateway when enabled."
+  value       = try(azurerm_application_gateway.main[0].id, null)
+}
+
+output "application_gateway_name" {
+  description = "Name of Application Gateway when enabled."
+  value       = try(azurerm_application_gateway.main[0].name, null)
+}
+
+output "github_runner_private_ip" {
+  description = "Private IP of the self-hosted runner VM (VNet access to private Web App)."
+  value       = length(azurerm_network_interface.github_runner) > 0 ? azurerm_network_interface.github_runner[0].private_ip_address : null
+}
+
+output "github_runner_public_ip" {
+  description = "Public IP for SSH and GitHub egress when assign_public_ip is true."
+  value       = length(azurerm_public_ip.github_runner) > 0 ? azurerm_public_ip.github_runner[0].ip_address : null
+}
+
+output "github_runner_ssh_hint" {
+  description = "SSH command when runner has a public IP."
+  value       = length(azurerm_public_ip.github_runner) > 0 ? "ssh ${var.github_runner.admin_username}@${azurerm_public_ip.github_runner[0].ip_address}" : null
+}
+

@@ -1,0 +1,64 @@
+# Copy snippets into variables.auto.tfvars (or merge with your existing file).
+# Repository .gitignore ignores *.auto.tfvars — keep secrets and PFX paths local.
+#
+# PFX files: place under e.g. ./certs/ and add certs/*.pfx to .gitignore (recommended).
+# Passwords: use environment (not committed):
+#   PowerShell: $env:TF_VAR_app_gateway_ssl_certificate_passwords = '{"main":"your-pfx-password"}'
+#   Bash:       export TF_VAR_app_gateway_ssl_certificate_passwords='{"main":"your-pfx-password"}'
+
+# --- Disabled (default-style) -------------------------------------------------
+# app_gateway_config = {
+#   enabled = false
+#   sites   = []
+# }
+
+# --- Example: single public hostname + one PFX ------------------------------
+# app_gateway_config = {
+#   enabled                 = true
+#   sku_name                = "WAF_v2"
+#   sku_tier                = "WAF_v2"
+#   capacity                = 2
+#   subnet_address_prefixes = ["10.36.4.0/26"]
+#   redirect_http_to_https  = true
+#   ssl_certificates = {
+#     main = { pfx_file = "certs/app.example.com.pfx" }
+#   }
+#   sites = [
+#     {
+#       name                = "primary"
+#       host_name           = "app.example.com"
+#       ssl_certificate_key = "main"
+#       # backend_host_header defaults to the Web App default hostname (App Service SNI)
+#       # health_probe_path = "/"
+#     }
+#   ]
+# }
+
+# --- Example: multiple domains (shared or per-site PFX via map keys) ----------
+# app_gateway_config = {
+#   enabled   = true
+#   sku_name  = "WAF_v2"
+#   sku_tier  = "WAF_v2"
+#   capacity  = 2
+#   ssl_certificates = {
+#     app_a = { pfx_file = "certs/a.example.com.pfx" }
+#     app_b = { pfx_file = "certs/b.example.com.pfx" }
+#   }
+#   sites = [
+#     { name = "site-a", host_name = "a.example.com", ssl_certificate_key = "app_a" },
+#     { name = "site-b", host_name = "b.example.com", ssl_certificate_key = "app_b" },
+#   ]
+# }
+
+# --- Example: Standard_v2 (no WAF), external WAF policy later -----------------
+# app_gateway_config = {
+#   enabled                  = true
+#   sku_name                 = "Standard_v2"
+#   sku_tier                 = "Standard_v2"
+#   enable_waf_configuration = false
+#   firewall_policy_id       = null
+#   ssl_certificates         = { main = { pfx_file = "certs/site.pfx" } }
+#   sites = [
+#     { name = "primary", host_name = "www.example.com", ssl_certificate_key = "main" }
+#   ]
+# }

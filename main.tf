@@ -199,3 +199,128 @@ resource "azurerm_log_analytics_workspace" "infocomp_law" {
   sku                 = "PerGB2018"
   retention_in_days   = 30
 }
+
+// -----------------------------------------------------------------------------
+// GitHub self-hosted Actions runner (Linux) on vm_network_subnet — private VNet
+// access to Web App PE; public IP optional for GitHub / package egress.
+// -----------------------------------------------------------------------------
+
+resource "azurerm_network_security_group" "github_runner" {
+  count = var.github_runner.enabled ? 1 : 0
+
+  name                = "nsg-cc-infocomp-github-runner-${var.environment}"
+  location            = azurerm_resource_group.infra_rg.location
+  resource_group_name = azurerm_resource_group.infra_rg.name
+}
+
+resource "azurerm_network_security_rule" "github_runner_ssh" {
+  count = var.github_runner.enabled ? 1 : 0
+
+  name                        = "AllowSSH"
+  priority                    = 100
+  direction                   = "Inbound"
+  access                      = "Allow"
+  protocol                    = "Tcp"
+  source_port_range           = "*"
+  destination_port_range      = "22"
+  source_address_prefixes     = var.github_runner.allow_ssh_cidrs
+  destination_address_prefix  = "*"
+  resource_group_name         = azurerm_resource_group.infra_rg.name
+  network_security_group_name = azurerm_network_security_group.github_runner[0].name
+}
+
+resource "azurerm_public_ip" "github_runner" {
+  count = var.github_runner.enabled && var.github_runner.assign_public_ip ? 1 : 0
+
+  name                = "pip-cc-infocomp-github-runner-${var.environment}"
+  location            = azurerm_resource_group.infra_rg.location
+  resource_group_name = azurerm_resource_group.infra_rg.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+}
+
+resource "azurerm_network_interface" "github_runner" {
+  count = var.github_runner.enabled ? 1 : 0
+
+  name                = "nic-cc-infocomp-github-runner-${var.environment}"
+  location            = azurerm_resource_group.infra_rg.location
+  resource_group_name = azurerm_resource_group.infra_rg.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.vm_network_subnet.id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = var.github_runner.assign_public_ip ? azurerm_public_ip.github_runner[0].id : null
+  }
+}
+
+resource "azurerm_network_interface_security_group_association" "github_runner" {
+  count = var.github_runner.enabled ? 1 : 0
+
+  network_interface_id      = azurerm_network_interface.github_runner[0].id
+  network_security_group_id = azurerm_network_security_group.github_runner[0].id
+}
+
+locals {
+  github_runner_cloud_init = var.github_runner.enabled ? base64encode(join("", [
+    "#cloud-config\n",
+    yamlencode({
+      package_update  = true
+      package_upgrade = false
+      packages = concat(
+        ["ca-certificates", "curl", "git", "jq", "unzip"],
+        var.github_runner.install_docker ? ["docker.io"] : []
+      )
+      runcmd = concat(
+        var.github_runner.install_docker ? [
+          ["systemctl", "enable", "docker"],
+          ["systemctl", "start", "docker"],
+          ["usermod", "-aG", "docker", var.github_runner.admin_username],
+        ] : [],
+        [["sh", "-c", "echo 'GitHub Actions runner: install from https://github.com/actions/runner then ./config.sh' >> /etc/motd"]]
+      )
+    }),
+  ])) : ""
+}
+
+resource "azurerm_linux_virtual_machine" "github_runner" {
+  count = var.github_runner.enabled ? 1 : 0
+
+  name                = "vm-cc-infocomp-github-runner-${var.environment}"
+  location            = azurerm_resource_group.infra_rg.location
+  resource_group_name = azurerm_resource_group.infra_rg.name
+  size                = var.github_runner.vm_size
+  admin_username      = var.github_runner.admin_username
+  custom_data         = local.github_runner_cloud_init
+
+  network_interface_ids = [
+    azurerm_network_interface.github_runner[0].id,
+  ]
+
+  admin_ssh_key {
+    username   = var.github_runner.admin_username
+    public_key = var.github_runner.ssh_public_key
+  }
+
+  os_disk {
+    name                 = "osdisk-github-runner-${var.environment}"
+    caching              = "ReadWrite"
+    storage_account_type = "Premium_LRS"
+    disk_size_gb         = var.github_runner.disk_size_gb
+  }
+
+  source_image_reference {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts-gen2"
+    version   = "latest"
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  depends_on = [
+    azurerm_network_interface_security_group_association.github_runner,
+  ]
+}
