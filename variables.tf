@@ -93,6 +93,7 @@ variable "app_gateway_ssl_certificate_passwords" {
   description = "PFX password per ssl_certificates key. Prefer env: TF_VAR_app_gateway_ssl_certificate_passwords='{\"main\":\"...\"}' instead of tfvars."
 }
 
+
 variable "github_runner" {
   description = <<-EOT
     Self-hosted GitHub Actions runner VM on vm_network_subnet (reaches private Web App over the VNet).
