@@ -1,0 +1,19 @@
+# Copy to dev.backend.hcl (gitignored) or map these to GitHub Actions secrets.
+# Bootstrap: this storage must exist before remote state works. Options:
+# 1) Run terraform once locally without this backend, then terraform init -migrate-state.
+# 2) Create the RG, storage account, and container manually to match names below.
+#
+# Init: terraform init -backend-config=config/dev.backend.hcl
+#
+# With az login (no storage access key): use_azuread_auth must be true. Your user or
+# pipeline identity needs "Storage Blob Data Contributor" on the state storage account
+# or container (not only Owner on the RG).
+
+resource_group_name  = "rg-cc-infocomp-dev-state-eus-01"
+storage_account_name = "tfstatedeveus"
+container_name       = "tfstate-container-dev"
+key                  = "infocomp/dev/terraform.tfstate"
+use_azuread_auth     = true
+
+# Optional if your CLI default subscription is wrong:
+# subscription_id = "00000000-0000-0000-0000-000000000000"

@@ -1,0 +1,135 @@
+# Required GitHub secrets (repository or environment):
+#   AZURE_CLIENT_ID           — App registration client ID
+#   AZURE_CLIENT_SECRET       — App registration client secret (store as a secret; rotate regularly)
+#   AZURE_TENANT_ID
+#   AZURE_SUBSCRIPTION_ID
+#   TF_BACKEND_RESOURCE_GROUP — RG containing the Terraform state storage account
+#   TF_BACKEND_STORAGE_ACCOUNT
+#   TF_BACKEND_CONTAINER
+#
+# Optional repository variable:
+#   TF_ENVIRONMENT — default workspace name for state key and TF_VAR_environment (e.g. dev). Ignored when using workflow_dispatch.
+#
+# Azure: app registration needs a client secret; grant the app Contributor (or narrower) on the subscription
+# and Storage Blob Data Contributor on the state storage account for backend + Terraform.
+
+name: Terraform
+
+on:
+  pull_request:
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yml"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "TF_VAR_environment and state key segment (e.g. dev, staging)."
+        required: true
+        default: dev
+        type: string
+      run_apply:
+        description: "Run terraform apply after plan."
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  TF_IN_AUTOMATION: true
+  WORKING_DIRECTORY: terraform
+
+jobs:
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ env.WORKING_DIRECTORY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (client secret)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.8"
+          terraform_wrapper: false
+
+      - name: Resolve Terraform environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tf_environment=${{ inputs.environment }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tf_environment=${{ vars.TF_ENVIRONMENT || 'dev' }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Terraform format (check)
+        run: terraform fmt -check -recursive
+
+      - name: Write backend config
+        env:
+          TF_BACKEND_RG: ${{ secrets.TF_BACKEND_RESOURCE_GROUP }}
+          TF_BACKEND_SA: ${{ secrets.TF_BACKEND_STORAGE_ACCOUNT }}
+          TF_BACKEND_CONTAINER: ${{ secrets.TF_BACKEND_CONTAINER }}
+        run: |
+          set -euo pipefail
+          for v in TF_BACKEND_RG TF_BACKEND_SA TF_BACKEND_CONTAINER; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::Set repository secrets TF_BACKEND_RESOURCE_GROUP, TF_BACKEND_STORAGE_ACCOUNT, and TF_BACKEND_CONTAINER."
+              exit 1
+            fi
+          done
+          mkdir -p config
+          cat > config/ci.backend.hcl <<EOF
+          resource_group_name  = "${TF_BACKEND_RG}"
+          storage_account_name = "${TF_BACKEND_SA}"
+          container_name       = "${TF_BACKEND_CONTAINER}"
+          key                  = "infocomp/${{ steps.env.outputs.tf_environment }}/terraform.tfstate"
+          use_azuread_auth     = true
+          EOF
+
+      - name: Terraform init
+        run: terraform init -input=false -backend-config=config/ci.backend.hcl
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        env:
+          TF_VAR_environment: ${{ steps.env.outputs.tf_environment }}
+        run: terraform plan -input=false -no-color -out=tfplan
+
+      - name: Terraform show (plan text)
+        run: terraform show -no-color tfplan > tfplan.txt
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ github.run_id }}
+          path: terraform/tfplan.txt
+
+      - name: Terraform apply
+        if: github.event_name == 'workflow_dispatch' && inputs.run_apply == true
+        env:
+          TF_VAR_environment: ${{ steps.env.outputs.tf_environment }}
+        run: terraform apply -input=false -no-color tfplan

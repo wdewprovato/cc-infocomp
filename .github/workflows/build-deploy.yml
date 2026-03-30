@@ -1,0 +1,62 @@
+name: Build and Deploy CC Blazor App
+
+on:
+  workflow_dispatch:
+
+
+env:
+  DOTNET_VERSION: 10.0.x
+  WEBAPP_NAME: app-cc-infcomp-dev
+  RESOURCE_GROUP: rg-cc-infcomp-dev-app-eus-01
+
+jobs:
+
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Step 1 - Checkout
+      uses: actions/checkout@v4
+
+    - name: Step 2.1 - Runner config Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        include-prerelease: true
+
+    - name: Step 2.2 - Runner config Cache NuGet
+      uses: actions/cache@v4
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+
+    - name: Step 3 - Restore Project
+      run: dotnet restore
+
+    - name: Step 4 - Build
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Step 5 - Publish
+      run: dotnet publish --configuration Release --output ./publish
+
+    - name: Step 6 - Zip Artifact
+      run: |
+        cd publish
+        zip -r ../app.zip .
+
+    - name: Step 7 - Azure Login
+      uses: azure/login@v2
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Step 8 - Deploy to Azure App Service
+      run: |
+        az webapp deployment source config-zip \
+          --resource-group ${{ env.RESOURCE_GROUP }} \
+          --name ${{ env.WEBAPP_NAME }} \
+          --src app.zip
