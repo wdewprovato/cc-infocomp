@@ -120,7 +120,7 @@ resource "azurerm_storage_account" "infocomp_storage" {
 }
 
 resource "azurerm_storage_table" "infocomp_table" {
-  name                 = "infocomptable-${var.environment}"
+  name                 = "infocomptable"
   storage_account_name = azurerm_storage_account.infocomp_storage.name
 }
 
