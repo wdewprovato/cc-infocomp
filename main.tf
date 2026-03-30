@@ -14,7 +14,7 @@ locals {
   )
   env_slug_alnum        = substr(local.env_no_sep, 0, 14)
   tf_state_storage_name = "tfstatedeveus"
-  infocomp_storage_name = substr("stinfocomp${local.env_slug_alnum}", 0, 24)
+  infocomp_storage_name = substr("stccinfocomp${local.env_slug_alnum}", 0, 24)
 }
 
 // Resource group for infrastructure, environment included in the name dynamically
@@ -49,7 +49,7 @@ resource "azurerm_resource_group" "state_rg" {
 
 // Virtual Network
 resource "azurerm_virtual_network" "infocomp_vnet" {
-  name                = "vnet-infocomp-${var.environment}"
+  name                = "vnet-cc-infocomp-${var.environment}"
   resource_group_name = azurerm_resource_group.infra_rg.name
   location            = azurerm_resource_group.infra_rg.location
   address_space       = ["10.36.0.0/16"]
@@ -57,11 +57,10 @@ resource "azurerm_virtual_network" "infocomp_vnet" {
 
 // Subnet for Private Endpoint Connections
 resource "azurerm_subnet" "pec_subnet" {
-  name                 = "pec-subnet-${var.environment}"
-  resource_group_name  = azurerm_resource_group.infra_rg.name
-  virtual_network_name = azurerm_virtual_network.infocomp_vnet.name
-  address_prefixes     = ["10.36.1.0/24"]
-
+  name                              = "pec-cc-subnet-${var.environment}"
+  resource_group_name               = azurerm_resource_group.infra_rg.name
+  virtual_network_name              = azurerm_virtual_network.infocomp_vnet.name
+  address_prefixes                  = ["10.36.1.0/24"]
   private_endpoint_network_policies = "Enabled"
 }
 
@@ -71,8 +70,7 @@ resource "azurerm_subnet" "vnet_integration_subnet" {
   resource_group_name  = azurerm_resource_group.infra_rg.name
   virtual_network_name = azurerm_virtual_network.infocomp_vnet.name
   address_prefixes     = ["10.36.2.0/24"]
-
-  service_endpoints = ["Microsoft.Web"]
+  service_endpoints    = ["Microsoft.Web"]
 }
 
 // Subnet for VM Network
@@ -90,7 +88,7 @@ resource "azurerm_storage_account" "infocomp_storage" {
   location                 = azurerm_resource_group.apphosting_rg.location
   account_kind             = "StorageV2"
   account_tier             = "Standard"
-  account_replication_type = "LRS"
+  account_replication_type = "GRS"
 
   allow_nested_items_to_be_public = false
 
@@ -100,13 +98,13 @@ resource "azurerm_storage_account" "infocomp_storage" {
 }
 
 resource "azurerm_storage_table" "infocomp_table" {
-  name                 = "infocomptable"
+  name                 = "ccinfocomptable"
   storage_account_name = azurerm_storage_account.infocomp_storage.name
 }
 
 // App Service Plan
 resource "azurerm_service_plan" "infocomp_plan" {
-  name                = "asp-infocomp-${var.environment}"
+  name                = "asp-cc-infocomp-${var.environment}"
   location            = azurerm_resource_group.apphosting_rg.location
   resource_group_name = azurerm_resource_group.apphosting_rg.name
   os_type             = "Windows"
@@ -115,7 +113,7 @@ resource "azurerm_service_plan" "infocomp_plan" {
 
 // Web App
 resource "azurerm_windows_web_app" "infocomp_webapp" {
-  name                = "webapp-infocomp-${var.environment}"
+  name                = "webapp-cc-infocomp-${var.environment}"
   location            = azurerm_resource_group.apphosting_rg.location
   resource_group_name = azurerm_resource_group.apphosting_rg.name
   service_plan_id     = azurerm_service_plan.infocomp_plan.id
@@ -139,13 +137,13 @@ resource "azurerm_windows_web_app" "infocomp_webapp" {
 
 // Private Endpoint for Web App
 resource "azurerm_private_endpoint" "webapp_endpoint" {
-  name                = "webapp-infocomp-pe-${var.environment}"
+  name                = "webapp-cc-infocomp-pe-${var.environment}"
   resource_group_name = azurerm_resource_group.infra_rg.name
   location            = azurerm_resource_group.infra_rg.location
   subnet_id           = azurerm_subnet.pec_subnet.id
 
   private_service_connection {
-    name                           = "webapp-private-service-${var.environment}"
+    name                           = "webapp-cc-infocompprivate-service-${var.environment}"
     is_manual_connection           = false
     private_connection_resource_id = azurerm_windows_web_app.infocomp_webapp.id
     subresource_names              = ["sites"]
@@ -154,7 +152,7 @@ resource "azurerm_private_endpoint" "webapp_endpoint" {
 
 // Application Insights
 resource "azurerm_application_insights" "infocomp_ai" {
-  name                = "appinsights-infocomp-${var.environment}"
+  name                = "appinsights-cc-infocomp-${var.environment}"
   location            = azurerm_resource_group.monitoring_rg.location
   resource_group_name = azurerm_resource_group.monitoring_rg.name
   application_type    = "web"
@@ -162,7 +160,7 @@ resource "azurerm_application_insights" "infocomp_ai" {
 
 // Key Vault
 resource "azurerm_key_vault" "infocomp_kv" {
-  name                = "kv-infocomp-${var.environment}"
+  name                = "kv-cc-infocomp-${var.environment}"
   resource_group_name = azurerm_resource_group.security_rg.name
   location            = azurerm_resource_group.security_rg.location
 
@@ -180,13 +178,13 @@ resource "azurerm_key_vault" "infocomp_kv" {
 
 // Private Endpoint for Key Vault
 resource "azurerm_private_endpoint" "keyvault_endpoint" {
-  name                = "kv-infocomp-pe-${var.environment}"
+  name                = "kv-cc-infocomp-pe-${var.environment}"
   resource_group_name = azurerm_resource_group.infra_rg.name
   location            = azurerm_resource_group.infra_rg.location
   subnet_id           = azurerm_subnet.pec_subnet.id
 
   private_service_connection {
-    name                           = "keyvault-private-service-${var.environment}"
+    name                           = "keyvault-cc-private-service-${var.environment}"
     is_manual_connection           = false
     private_connection_resource_id = azurerm_key_vault.infocomp_kv.id
     subresource_names              = ["vault"]
@@ -195,7 +193,7 @@ resource "azurerm_private_endpoint" "keyvault_endpoint" {
 
 // Log Analytics Workspace
 resource "azurerm_log_analytics_workspace" "infocomp_law" {
-  name                = "law-infocomp-${var.environment}"
+  name                = "law-cc-infocomp-${var.environment}"
   location            = azurerm_resource_group.monitoring_rg.location
   resource_group_name = azurerm_resource_group.monitoring_rg.name
   sku                 = "PerGB2018"
