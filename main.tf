@@ -174,7 +174,7 @@ resource "azurerm_key_vault" "infocomp_kv" {
     tenant_id = data.azurerm_client_config.current.tenant_id
     object_id = azurerm_windows_web_app.infocomp_webapp.identity[0].principal_id
 
-    secret_permissions = ["get", "list"]
+    secret_permissions = ["Get", "List"]
   }
 }
 
