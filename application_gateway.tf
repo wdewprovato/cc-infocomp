@@ -8,7 +8,7 @@
 # -----------------------------------------------------------------------------
 
 
-# NIC for the Web App private endpoint (provider 4.x exposes IP via the linked interface).
+// NIC for the Web App private endpoint (provider 4.x exposes IP via the linked interface).
 data "azurerm_network_interface" "webapp_private_endpoint" {
   count = var.app_gateway_config.enabled ? 1 : 0
 
