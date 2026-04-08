@@ -1,9 +1,12 @@
-# -----------------------------------------------------------------------------
-# Application Gateway (optional): TLS certs from Key Vault secrets (PFX as Base64),
+#-------------------------------------------------------------------------------
+# Terraform - Application Gateway 
+
+# Application Gateway: TLS certs from Key Vault secrets (PFX as Base64),
 # user-assigned identity + Key Vault access policy, multi-site listeners,
 # HTTP→HTTPS redirect, backend = App Service via private endpoint IP.
 # See config/app-gateway.auto.tfvars.example.
 # -----------------------------------------------------------------------------
+
 
 # NIC for the Web App private endpoint (provider 4.x exposes IP via the linked interface).
 data "azurerm_network_interface" "webapp_private_endpoint" {

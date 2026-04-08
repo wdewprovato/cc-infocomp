@@ -1,3 +1,7 @@
+#-------------------------------------------------------------------------------
+# Terraform Outputs
+#-------------------------------------------------------------------------------
+
 output "environment" {
   description = "Configured environment name."
   value       = var.environment

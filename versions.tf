@@ -1,3 +1,7 @@
+#-------------------------------------------------------------------------------
+# Terraform Required Versions and Provider Constraints
+#-------------------------------------------------------------------------------
+
 terraform {
   required_version = ">= 1.6.0"
 
@@ -22,5 +26,4 @@ terraform {
     key                  = "infocomp/dev/terraform.tfstate"
     # Use managed identity or service principal if not using access keys
   }
-
 }

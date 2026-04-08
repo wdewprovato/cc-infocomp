@@ -1,3 +1,7 @@
+#-------------------------------------------------------------------------------
+# Terraform Variables 
+#-------------------------------------------------------------------------------
+
 variable "environment" {
   description = "Deployment environment segment used in Azure resource names (e.g. dev, staging)."
   type        = string

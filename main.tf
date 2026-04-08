@@ -1,3 +1,8 @@
+#-------------------------------------------------------------------------------
+# Terraform - Primary Declaration File
+#-------------------------------------------------------------------------------
+
+// Data source to get current client configuration for Key Vault access policy
 data "azurerm_client_config" "current" {}
 
 moved {
