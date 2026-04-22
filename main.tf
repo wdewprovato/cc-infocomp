@@ -146,6 +146,29 @@ resource "azurerm_windows_web_app" "infocomp_webapp" {
   ]
 }
 
+resource "azurerm_windows_web_app" "infocomp_webapp_api" {
+  name                = "webapp-cc-infocomp-api-${var.environment}"
+  location            = azurerm_resource_group.apphosting_rg.location
+  resource_group_name = azurerm_resource_group.apphosting_rg.name
+  service_plan_id     = azurerm_service_plan.infocomp_plan.id
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  site_config {}
+
+  app_settings = {
+    APPLICATIONINSIGHTS_CONNECTION_STRING      = azurerm_application_insights.infocomp_ai.connection_string
+    APPINSIGHTS_INSTRUMENTATIONKEY             = azurerm_application_insights.infocomp_ai.instrumentation_key
+    ApplicationInsightsAgent_EXTENSION_VERSION = "~3"
+  }
+
+  depends_on = [
+    azurerm_storage_account.infocomp_storage
+  ]
+}
+
 // Private Endpoint for Web App
 resource "azurerm_private_endpoint" "webapp_endpoint" {
   name                = "webapp-cc-infocomp-pe-${var.environment}"
@@ -160,6 +183,23 @@ resource "azurerm_private_endpoint" "webapp_endpoint" {
     subresource_names              = ["sites"]
   }
 }
+
+
+// Private Endpoint for Web App
+resource "azurerm_private_endpoint" "webapp_endpoint" {
+  name                = "webapp-cc-infocomp-api-pe-${var.environment}"
+  resource_group_name = azurerm_resource_group.infra_rg.name
+  location            = azurerm_resource_group.infra_rg.location
+  subnet_id           = azurerm_subnet.pec_subnet.id
+
+  private_service_connection {
+    name                           = "webapp-cc-infocompprivate-service-${var.environment}"
+    is_manual_connection           = false
+    private_connection_resource_id = azurerm_windows_web_app.infocomp_webapp_api.id
+    subresource_names              = ["sites"]
+  }
+}
+
 
 // Application Insights
 resource "azurerm_application_insights" "infocomp_ai" {
