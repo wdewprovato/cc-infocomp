@@ -186,7 +186,7 @@ resource "azurerm_private_endpoint" "webapp_endpoint" {
 
 
 // Private Endpoint for Web App
-resource "azurerm_private_endpoint" "webapp_endpoint" {
+resource "azurerm_private_endpoint" "webapp_endpoint_api" {
   name                = "webapp-cc-infocomp-api-pe-${var.environment}"
   resource_group_name = azurerm_resource_group.infra_rg.name
   location            = azurerm_resource_group.infra_rg.location
